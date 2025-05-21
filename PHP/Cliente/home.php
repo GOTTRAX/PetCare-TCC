@@ -1,9 +1,11 @@
 <?php
 session_start();
-if (!isset($_SESSION["id"])) {
-    header("Location: ../index.php"); 
+
+// Verifica se o usuário está logado e se é do tipo 'cliente'
+if (!isset($_SESSION["id"]) || $_SESSION["tipo_usuario"] !== "cliente") {
+    header("Location: ../index.php");
     exit();
-} 
+}
 ?>
 
 <!DOCTYPE html>
@@ -17,7 +19,7 @@ if (!isset($_SESSION["id"])) {
     <link rel="icon" type="image/png" href="https://img.icons8.com/ios/452/cat.png">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link rel="stylesheet" href="../CSS/styles.css">
+    <link rel="stylesheet" href="../../CSS/styles.css">
 </head>
 
 <body>
@@ -30,8 +32,9 @@ if (!isset($_SESSION["id"])) {
             dedicados ao bem-estar do seu pet.</p>
 
             <div class="buttons">
-                <a href="../Teste/tcc-pet-main/html/consultas.html" class="btn primary">Agendar Consulta</a>
-                <a href="#" class="btn secondary">Contato</a>
+                <a href="../Teste/tcc-pet-main/html/consultas.html" 
+                   class="btn primary">   Agendar Consulta </a>
+                <a href="#" class="btn secondary"> Contato </a>
             </div>
 
         </div>
@@ -39,6 +42,7 @@ if (!isset($_SESSION["id"])) {
             <img src="https://images.pexels.com/photos/6235225/pexels-photo-6235225.jpeg" 
                  alt="Imagem principal">
         </div>
+        
     </section>
 
     <section id="servicos" class="servicos">
@@ -81,11 +85,11 @@ if (!isset($_SESSION["id"])) {
             </div>
         </div>
     </section>
-    <?php include 'menu.php'; ?>
-    <?php include 'footer.html'; ?>
+    <?php include '../menu.php'; ?>
+    <?php include '../footer.html'; ?>
     <p></p>
     <p></p>
-    <script src="../JS/script.js" defer></script>
+    <script src="../../JS/script.js" defer></script>
 </body>
 </html>
 

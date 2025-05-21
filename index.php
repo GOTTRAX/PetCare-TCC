@@ -6,7 +6,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $email    = $_POST["email"];
     $password = $_POST["password"];
 
-    $sql = "SELECT id, nome, telefone, email, senha_hash, datanasc, genero FROM Usuarios WHERE email = ?";
+    $sql = "SELECT id,
+                   nome,
+                   telefone,
+                   email,
+                   senha_hash,
+                   datanasc,
+                   genero,
+                   tipo_usuario FROM Usuarios WHERE email = ?";
+                   
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("s", $email);
     $stmt->execute();
@@ -16,16 +24,37 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $usuario = $resultado->fetch_assoc();
 
         if (password_verify($password, $usuario["senha_hash"])) {
-            
-            $_SESSION["id"]       = $usuario["id"];
-            $_SESSION["nome"]     = $usuario["nome"];
-            $_SESSION["telefone"] = $usuario["telefone"];
-            $_SESSION["email"]    = $usuario["email"];
-            $_SESSION["datanasc"] = $usuario["datanasc"];
-            $_SESSION["genero"]   = $usuario["genero"];
+            $_SESSION["id"]           = $usuario["id"];
+            $_SESSION["nome"]         = $usuario["nome"];
+            $_SESSION["telefone"]     = $usuario["telefone"];
+            $_SESSION["email"]        = $usuario["email"];
+            $_SESSION["datanasc"]     = $usuario["datanasc"];
+            $_SESSION["genero"]       = $usuario["genero"];
+            $_SESSION["tipo_usuario"] = $usuario["tipo_usuario"];
 
-            header("Location: PHP/home.php");
+            // Atualiza a data/hora do último login
+            $updateLogin = $conn->prepare("UPDATE Usuarios SET ultimo_login = NOW() WHERE id = ?");
+            $updateLogin->bind_param("i", $usuario["id"]);
+            $updateLogin->execute();
+            $updateLogin->close();
+
+            // Redirecionamento baseado no tipo de usuário
+            switch ($usuario["tipo_usuario"]) {
+                case "Veterinario":
+                    header("Location: PHP/Vet/vet_home.html");
+                    break;
+                case "Secretaria":
+                    header("Location: PHP/Secretaria/home.php");
+                    break;
+                case "Cuidador":
+                    header("Location: PHP/Cuidadores/home.php");
+                    break;
+                default:
+                    header("Location: PHP/Cliente/home.php");
+                    break;
+            }
             exit();
+
         } else {
             $erro = "Senha incorreta.";
         }

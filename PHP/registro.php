@@ -36,7 +36,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $_SESSION["usuario_id"] = $conn->insert_id;  
     $_SESSION["usuario_email"] = $email;
 
-    header("Location: home.php");
+    header("Location: Cliente/home.php");
     exit();
 } else {
     echo "Erro ao registrar: " . $conn->error;

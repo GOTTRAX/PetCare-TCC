@@ -5,9 +5,10 @@ CREATE TABLE Usuarios (
 id INT auto_increment primary KEY,
 nome varchar(100) NOT NULL,
 cpf varchar(15) NOT NULL,
+telefone varchar(15),
 email varchar(100) NOT NULL UNIQUE,
 senha_hash varchar(255) NOT NULL,
-tipo_usuario ENUM('cliente', 'Veterinario', 'Secretaria', 'Cuidador') NOT NULL,
+tipo_usuario ENUM('cliente', 'Veterinario', 'Secretaria', 'Cuidador') DEFAULT 'cliente',
 tentativas INT DEFAULT 0,
 bloqueado_ate datetime DEFAULT NULL,
 ultimo_login DATETIME DEFAULT NULL,
@@ -15,6 +16,12 @@ ativo BOOLEAN DEFAULT TRUE,
 criado DATETIME DEFAULT CURRENT_TIMESTAMP,
 atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+ALTER TABLE Usuarios ADD COLUMN datanasc DATE;
+ALTER TABLE Usuarios ADD COLUMN genero ENUM('Masculino', 'Feminino', 'Outro') DEFAULT 'Outro';
+
+select  * FROM usuarios;
+
 
 CREATE TABLE Redef_Senha (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -43,9 +50,9 @@ CREATE TABLE Logs_Acesso (
 CREATE TABLE Animais (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
-    data_nascimento DATE,
-    raca VARCHAR(80),
+    datanasc DATE,
     especie ENUM('Cachorro', 'Gato', 'Hamster', 'Peixe') NOT NULL,
+    raca VARCHAR(80),
     sexo ENUM('Macho', 'Fêmea') DEFAULT NULL,
     usuario_id INT NOT NULL,
     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -53,6 +60,9 @@ CREATE TABLE Animais (
     
     FOREIGN KEY (usuario_id) REFERENCES Usuarios(id)
 );
+alter table animais
+change data_nascimento datanasc date;
+describe animais;
 
 CREATE TABLE Agendamentos (
     id INT AUTO_INCREMENT PRIMARY KEY,

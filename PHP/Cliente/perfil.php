@@ -11,7 +11,7 @@ if (!isset($_SESSION["id"])) {
 <head>
     <meta charset="UTF-8">
     <title>Minha Área</title>
-    <link rel="stylesheet" href="../CSS/styles.css">
+    <link rel="stylesheet" href="../../CSS/styles.css">
     <style>
         .buttons button {
     background-color: #00796B; 
@@ -233,7 +233,7 @@ if (!isset($_SESSION["id"])) {
 </head>
 <body>
 
-    <?php include 'menu.php'; ?>
+    <?php include '../menu.php'; ?>
     <br><br><br><br>
 
     <div class="container">
@@ -323,7 +323,7 @@ if (!isset($_SESSION["id"])) {
         <button type="submit">Alterar Senha</button>
     </form>
 
-    <form action="logout.php" method="post">
+    <form action="../logout.php" method="post">
         <button type="submit" class="btn-logout">Sair da Conta</button>
     </form>
 </div>
