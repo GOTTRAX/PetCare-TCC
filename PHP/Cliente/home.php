@@ -1,11 +1,13 @@
 <?php
 session_start();
 
-// Verifica se o usuário está logado e se é do tipo 'cliente'
-if (!isset($_SESSION["id"]) || $_SESSION["tipo_usuario"] !== "cliente") {
+if (!isset($_SESSION["id"]) || $_SESSION["tipo_usuario"] !== "Cliente") {
     header("Location: ../index.php");
     exit();
 }
+
+include '../conexao.php';
+
 ?>
 
 <!DOCTYPE html>

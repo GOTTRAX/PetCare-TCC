@@ -1,6 +1,6 @@
 <?php
 session_start();
-include("conexao.php");
+include("conexao.php"); // deve definir a variável $pdo (não $conn)
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $nome       = $_POST["nome"];
@@ -15,36 +15,34 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         die("As senhas não coincidem.");
     }
 
-    $verifica = $conn->prepare("SELECT id FROM Usuarios WHERE email = ?");
-    $verifica->bind_param("s", $email);
-    $verifica->execute();
-    $verifica->store_result();
+    // Verificar se o e-mail já está cadastrado
+    $verifica = $pdo->prepare("SELECT id FROM Usuarios WHERE email = ?");
+    $verifica->execute([$email]);
 
-    if ($verifica->num_rows > 0) {
+    if ($verifica->rowCount() > 0) {
         die("Este e-mail já está cadastrado.");
     }
-    $verifica->close();
 
     $senhaHash = password_hash($senha, PASSWORD_DEFAULT);
 
+    // Inserir novo usuário
     $sql = "INSERT INTO Usuarios (nome, cpf, email, senha_hash, telefone, datanasc)
             VALUES (?, ?, ?, ?, ?, ?)";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ssssss", $nome, $cpf, $email, $senhaHash, $telefone, $datanasc);
+    $stmt = $pdo->prepare($sql);
 
-    if ($stmt->execute()) {
-    $_SESSION["usuario_id"] = $conn->insert_id;  
-    $_SESSION["usuario_email"] = $email;
+    if ($stmt->execute([$nome, $cpf, $email, $senhaHash, $telefone, $datanasc])) {
+        $_SESSION["usuario_id"] = $pdo->lastInsertId();  
+        $_SESSION["usuario_email"] = $email;
 
-    header("Location: Cliente/home.php");
-    exit();
-} else {
-    echo "Erro ao registrar: " . $conn->error;
+        header("Location: Cliente/home.php");
+        exit();
+    } else {
+        echo "Erro ao registrar: ";
+        print_r($stmt->errorInfo());
+    }
 }
-  $stmt->close();
-}
-$conn->close();
 ?>
+
 
 <html lang="pt-br">
 <head>

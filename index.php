@@ -1,71 +1,64 @@
 <?php
 session_start();
-include("PHP/conexao.php");
+include("PHP/conexao.php"); // Esse arquivo deve criar a conexão PDO como $pdo
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $email    = $_POST["email"];
-    $password = $_POST["password"];
+    $email    = $_POST["email"] ?? '';
+    $password = $_POST["password"] ?? '';
 
-    $sql = "SELECT id,
-                   nome,
-                   telefone,
-                   email,
-                   senha_hash,
-                   datanasc,
-                   genero,
-                   tipo_usuario FROM Usuarios WHERE email = ?";
-                   
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("s", $email);
-    $stmt->execute();
-    $resultado = $stmt->get_result();
+    try {
+        $sql = "SELECT id, nome, telefone, email, senha_hash, datanasc, genero, tipo_usuario 
+                FROM Usuarios WHERE email = :email";
 
-    if ($resultado->num_rows === 1) {
-        $usuario = $resultado->fetch_assoc();
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':email' => $email]);
+        $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (password_verify($password, $usuario["senha_hash"])) {
-            $_SESSION["id"]           = $usuario["id"];
-            $_SESSION["nome"]         = $usuario["nome"];
-            $_SESSION["telefone"]     = $usuario["telefone"];
-            $_SESSION["email"]        = $usuario["email"];
-            $_SESSION["datanasc"]     = $usuario["datanasc"];
-            $_SESSION["genero"]       = $usuario["genero"];
-            $_SESSION["tipo_usuario"] = $usuario["tipo_usuario"];
+        if ($usuario) {
+            if (password_verify($password, $usuario["senha_hash"])) {
+                // Define variáveis de sessão
+                $_SESSION["id"]           = $usuario["id"];
+                $_SESSION["nome"]         = $usuario["nome"];
+                $_SESSION["telefone"]     = $usuario["telefone"];
+                $_SESSION["email"]        = $usuario["email"];
+                $_SESSION["datanasc"]     = $usuario["datanasc"];
+                $_SESSION["genero"]       = $usuario["genero"];
+                $_SESSION["tipo_usuario"] = $usuario["tipo_usuario"];
 
-            // Atualiza a data/hora do último login
-            $updateLogin = $conn->prepare("UPDATE Usuarios SET ultimo_login = NOW() WHERE id = ?");
-            $updateLogin->bind_param("i", $usuario["id"]);
-            $updateLogin->execute();
-            $updateLogin->close();
+                // Atualiza a data/hora do último login
+                $updateLogin = $pdo->prepare("UPDATE Usuarios SET ultimo_login = NOW() WHERE id = :id");
+                $updateLogin->execute([':id' => $usuario["id"]]);
 
-            // Redirecionamento baseado no tipo de usuário
-            switch ($usuario["tipo_usuario"]) {
-                case "Veterinario":
-                    header("Location: PHP/Vet/vet_home.html");
-                    break;
-                case "Secretaria":
-                    header("Location: PHP/Secretaria/home.php");
-                    break;
-                case "Cuidador":
-                    header("Location: PHP/Cuidadores/home.php");
-                    break;
-                default:
-                    header("Location: PHP/Cliente/home.php");
-                    break;
+                // Redirecionamento com base no tipo de usuário
+                switch ($usuario["tipo_usuario"]) {
+                    case "Veterinario":
+                        header("Location: PHP/Vet/vet_home.html");
+                        exit();
+                    case "Secretaria":
+                        header("Location: PHP/Secretaria/sec_home.php");
+                        exit();
+                    case "Cliente":
+                        header("Location: PHP/Cliente/home.php");
+                        exit();
+                    default:
+                        header("Location: PHP/Cuidadores/home.php");
+                        exit();
+                }
+
+            } else {
+                $erro = "Senha incorreta.";
             }
-            exit();
-
         } else {
-            $erro = "Senha incorreta.";
+            $erro = "Usuário não encontrado.";
         }
-    } else {
-        $erro = "Usuário não encontrado.";
+    } catch (PDOException $e) {
+        $erro = "Erro no login. Tente novamente mais tarde.";
+        // Para desenvolvimento, você pode ativar isso:
+        // echo "Erro no login: " . $e->getMessage();
     }
-
-    $stmt->close();
-    $conn->close();
 }
 ?>
+
 
 <!DOCTYPE html>
 <html lang="pt-BR">

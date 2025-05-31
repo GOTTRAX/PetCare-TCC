@@ -83,3 +83,10 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 });
+
+function showSection(sectionId) {
+            document.querySelectorAll('.content').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionId).classList.add('active');
+        };
