@@ -1,3 +1,4 @@
+
 Create database PetCare;
 use PetCare;
 
@@ -16,22 +17,37 @@ bloqueado_ate datetime DEFAULT NULL,
 ultimo_login DATETIME DEFAULT NULL,
 ativo BOOLEAN DEFAULT TRUE,
 criado DATETIME DEFAULT CURRENT_TIMESTAMP,
-atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+descricao text(244) null
 );
 
 
-select  * FROM usuarios;
-drop table equipe;
-
-CREATE TABLE equipe (
+CREATE TABLE Servicos (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(100),
+    nome VARCHAR(100) NOT NULL,           -- Nome do serviço (ex: Consulta, Vacina, Cirurgia)
+    descricao TEXT,                       -- Descrição detalhada do serviço
+    preco DECIMAL(10,2),                  -- Preço base (pode ser NULL se for variável)
+    duracao_estimada INT,                 -- Duração em minutos (opcional)
+    tipo ENUM('Consulta', 'Banho', 'Tosa', 'Cirurgia', 'Exame', 'Outro') DEFAULT 'Outro',
+    ativo BOOLEAN DEFAULT TRUE,           -- Se o serviço ainda está em uso
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+ALTER TABLE Agendamentos ADD COLUMN servico_id INT NOT NULL;
+
+ALTER TABLE Agendamentos
+ADD FOREIGN KEY (servico_id) REFERENCES Servicos(id);
+
+CREATE TABLE Equipe (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NOT NULL,  
     profissao VARCHAR(100),
     descricao TEXT,
     foto VARCHAR(255),
-    
-    foreign key (nome) references usuarios(id)
+
+    FOREIGN KEY (usuario_id) REFERENCES Usuarios(id)
 );
+
 
 CREATE TABLE Animais (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -47,8 +63,7 @@ CREATE TABLE Animais (
     
     FOREIGN KEY (usuario_id) REFERENCES Usuarios(id)
 );
-select * from animais;
-
+describe Agendamentos;
 CREATE TABLE Agendamentos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     cliente_id INT NOT NULL,
@@ -64,6 +79,12 @@ CREATE TABLE Agendamentos (
     FOREIGN KEY (animal_id) REFERENCES Animais(id),
     FOREIGN KEY (veterinario_id) REFERENCES Usuarios(id)
 );
+ALTER TABLE Consultas
+    ADD COLUMN secretario_id INT NULL,
+    ADD COLUMN status ENUM('pendente', 'aceita', 'recusada') DEFAULT 'pendente',
+    ADD COLUMN mensagem TEXT NULL,
+    MODIFY COLUMN data_consulta DATETIME NOT NULL,
+    ADD CONSTRAINT fk_consultas_secretario_id FOREIGN KEY (secretario_id) REFERENCES Usuarios(id);
 
 CREATE TABLE Consultas (
     id INT AUTO_INCREMENT PRIMARY KEY,

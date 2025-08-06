@@ -15,7 +15,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         die("As senhas não coincidem.");
     }
 
-    // Verificar se o e-mail já está cadastrado
     $verifica = $pdo->prepare("SELECT id FROM Usuarios WHERE email = ?");
     $verifica->execute([$email]);
 
@@ -25,7 +24,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     $senhaHash = password_hash($senha, PASSWORD_DEFAULT);
 
-    // Inserir novo usuário
+    
     $sql = "INSERT INTO Usuarios (nome, cpf, email, senha_hash, telefone, datanasc)
             VALUES (?, ?, ?, ?, ?, ?)";
     $stmt = $pdo->prepare($sql);
@@ -34,7 +33,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $_SESSION["usuario_id"] = $pdo->lastInsertId();  
         $_SESSION["usuario_email"] = $email;
 
-        header("Location: Cliente/home.php");
+        header("Location: http://localhost/bruno/TCC/index.php");
         exit();
     } else {
         echo "Erro ao registrar: ";

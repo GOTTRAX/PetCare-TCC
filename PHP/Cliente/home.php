@@ -87,6 +87,11 @@ include '../conexao.php';
             </div>
         </div>
     </section>
+    <section>
+        <div class="">
+            avaliacioes 5 estralas
+        </div>
+    </section>
     <?php include '../menu.php'; ?>
     <?php include '../footer.html'; ?>
     <p></p>

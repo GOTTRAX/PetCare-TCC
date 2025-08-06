@@ -2,13 +2,16 @@
 include '../conexao.php'; // Certifique-se que este arquivo define corretamente a variável $pdo (instância de PDO)
 
 try {
-    $sql = "SELECT nome, profissao, descricao, foto FROM equipe";
+    $sql = "SELECT u.nome, e.profissao, e.descricao, e.foto
+            FROM equipe e
+            JOIN usuarios u ON e.usuario_id = u.id";
     $stmt = $pdo->query($sql); // Executa a query
     $equipe = $stmt->fetchAll(PDO::FETCH_ASSOC); // Pega todos os resultados como array associativo
 } catch (PDOException $e) {
     echo "Erro ao buscar equipe: " . $e->getMessage();
     $equipe = []; // Garante que $equipe esteja definido
 }
+
 ?>
 
 <!DOCTYPE html>
@@ -27,7 +30,7 @@ try {
         <div class="team-row row justify-content-center">
 
         <?php
-$sql = "SELECT nome, profissao, descricao, foto FROM equipe";
+$sql = "SELECT usuario_id, profissao, descricao, foto FROM equipe";
 $stmt = $pdo->query($sql); // já executa a query diretamente
 $equipe = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
