@@ -30,7 +30,7 @@ try {
         <div class="team-row row justify-content-center">
 
         <?php
-$sql = "SELECT usuario_id, profissao, descricao, foto FROM equipe";
+$sql = "SELECT usuario_id, nome, profissao, descricao, foto FROM equipe";
 $stmt = $pdo->query($sql); // já executa a query diretamente
 $equipe = $stmt->fetchAll(PDO::FETCH_ASSOC);
 

@@ -1,7 +1,8 @@
-
 Create database PetCare;
 use PetCare;
 
+--  usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios =
+select * from animais;
 CREATE TABLE Usuarios (
 id INT auto_increment primary KEY,
 nome varchar(100) NOT NULL,
@@ -20,24 +21,14 @@ criado DATETIME DEFAULT CURRENT_TIMESTAMP,
 atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 descricao text(244) null
 );
+-- usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios =  usuarios = usuarios = usuarios = usuarios =
 
 
-CREATE TABLE Servicos (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(100) NOT NULL,           -- Nome do serviço (ex: Consulta, Vacina, Cirurgia)
-    descricao TEXT,                       -- Descrição detalhada do serviço
-    preco DECIMAL(10,2),                  -- Preço base (pode ser NULL se for variável)
-    duracao_estimada INT,                 -- Duração em minutos (opcional)
-    tipo ENUM('Consulta', 'Banho', 'Tosa', 'Cirurgia', 'Exame', 'Outro') DEFAULT 'Outro',
-    ativo BOOLEAN DEFAULT TRUE,           -- Se o serviço ainda está em uso
-    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
-    atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+
 ALTER TABLE Agendamentos ADD COLUMN servico_id INT NOT NULL;
-
 ALTER TABLE Agendamentos
 ADD FOREIGN KEY (servico_id) REFERENCES Servicos(id);
-
+alter table Equipe add column nome varchar(100) after id;
 CREATE TABLE Equipe (
     id INT AUTO_INCREMENT PRIMARY KEY,
     usuario_id INT NOT NULL,  
@@ -47,23 +38,32 @@ CREATE TABLE Equipe (
 
     FOREIGN KEY (usuario_id) REFERENCES Usuarios(id)
 );
+select *from animais;
+select * from agendamentos;
+create table Especies(
+id int AUTO_INCREMENT PRIMARY KEY,
+nome VARCHAR(100) NOT NULL
+);
 
 
 CREATE TABLE Animais (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
     datanasc DATE,
-    especie ENUM('Cachorro', 'Gato', 'Hamster', 'Peixe') NOT NULL,
+    especie_id INT NOT NULL,
     raca VARCHAR(80),
-    porte enum('Pequeno', 'Medio', 'Grande'),
+    porte ENUM('Pequeno', 'Medio', 'Grande'),
     sexo ENUM('Macho', 'Fêmea') DEFAULT NULL,
     usuario_id INT NOT NULL,
     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
     atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (usuario_id) REFERENCES Usuarios(id)
+
+    FOREIGN KEY (usuario_id) REFERENCES Usuarios(id),
+    FOREIGN KEY (especie_id) REFERENCES Especies(id)
 );
-describe Agendamentos;
+
+
+
 CREATE TABLE Agendamentos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     cliente_id INT NOT NULL,
@@ -72,32 +72,55 @@ CREATE TABLE Agendamentos (
     data_hora DATE NOT NULL,
     hora_inicio TIME NOT NULL,
     hora_final TIME NOT NULL,
-    status ENUM('agendado', 'confirmado', 'cancelado') DEFAULT 'agendado',
+    status ENUM('pendente', 'confirmado', 'cancelado') DEFAULT 'pendente',
     observacoes TEXT,
 
     FOREIGN KEY (cliente_id) REFERENCES Usuarios(id),
     FOREIGN KEY (animal_id) REFERENCES Animais(id),
     FOREIGN KEY (veterinario_id) REFERENCES Usuarios(id)
 );
-ALTER TABLE Consultas
-    ADD COLUMN secretario_id INT NULL,
-    ADD COLUMN status ENUM('pendente', 'aceita', 'recusada') DEFAULT 'pendente',
-    ADD COLUMN mensagem TEXT NULL,
-    MODIFY COLUMN data_consulta DATETIME NOT NULL,
-    ADD CONSTRAINT fk_consultas_secretario_id FOREIGN KEY (secretario_id) REFERENCES Usuarios(id);
+
+
+INSERT INTO Agendamentos 
+(cliente_id, animal_id, veterinario_id, data_hora, hora_inicio, hora_final, status, observacoes)
+VALUES
+(1, 2, 2, '2025-08-15', '09:00:00', '09:30:00', 'pendente', 'Consulta de rotina para vacinação'),
+
+(1, 2, 2, '2025-08-16', '14:00:00', '14:45:00', 'confirmado', 'Exame de retorno pós-cirurgia'),
+
+(1, 2, 2, '2025-08-17', '10:00:00', '10:30:00', 'pendente', 'Avaliação de sintomas de apatia'),
+
+(1, 2, 2, '2025-08-18', '15:00:00', '15:30:00', 'cancelado', 'Cliente solicitou cancelamento por viagem');
+
+-- Ver todos os clientes
+SELECT id, nome, tipo_usuario FROM Usuarios;
+select * from Agendamentos;
+-- Ver todos os animais
+SELECT id, nome FROM Animais;
 
 CREATE TABLE Consultas (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    agendamento_id INT UNIQUE NOT NULL,
+    id INT NOT NULL AUTO_INCREMENT,
+    animal_id INT NOT NULL,
+    agendamento_id INT NOT NULL UNIQUE,
     veterinario_id INT NOT NULL,
-    data_consulta DATETIME DEFAULT CURRENT_TIMESTAMP,
+    secretario_id INT NULL,
+    data_consulta DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     diagnostico TEXT,
     tratamento TEXT,
     receita TEXT,
+    mensagem TEXT NULL,
 
-    FOREIGN KEY (agendamento_id) REFERENCES Agendamentos(id),
-    FOREIGN KEY (veterinario_id) REFERENCES Usuarios(id)
-);
+    PRIMARY KEY (id),
+
+    CONSTRAINT fk_consultas_animal_id
+        FOREIGN KEY (animal_id) REFERENCES Animais(id),
+    CONSTRAINT fk_consultas_agendamento_id
+        FOREIGN KEY (agendamento_id) REFERENCES Agendamentos(id),
+    CONSTRAINT fk_consultas_veterinario_id
+        FOREIGN KEY (veterinario_id) REFERENCES Usuarios(id),
+    CONSTRAINT fk_consultas_secretario_id
+        FOREIGN KEY (secretario_id) REFERENCES Usuarios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE Prontuarios (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -108,6 +131,8 @@ CREATE TABLE Prontuarios (
     FOREIGN KEY (consulta_id) REFERENCES Consultas(id)
 );
 
+
+-- configuracoes = configuracoes = configuracoes = configuracoes = configuracoes = configuracoes = configuracoes = configuracoes = configuracoes =
 CREATE TABLE Redef_Senha (
     id INT AUTO_INCREMENT PRIMARY KEY,
     usuario_id INT NOT NULL,
@@ -130,5 +155,43 @@ CREATE TABLE Logs_Acesso (
 
     FOREIGN KEY (usuario_id) REFERENCES Usuarios(id)
 );
-    
+
+CREATE TABLE Servicos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    descricao TEXT NULL,
+    preco_normal DECIMAL(10,2) NOT NULL,
+    preco_feriado DECIMAL(10,2) NOT NULL,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE Dias_Trabalhados (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    dia_semana ENUM('Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo') NOT NULL,
+    horario_abertura TIME NOT NULL,
+    horario_fechamento TIME NOT NULL,
+    ativo BOOLEAN DEFAULT TRUE,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE Periodos_Inativos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    data_inicio DATE NOT NULL,
+    data_fim DATE NOT NULL,
+    motivo VARCHAR(255) NOT NULL,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE Feriados (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    data DATE NOT NULL,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+ -- configuracoes = configuracoes = configuracoes = configuracoes = configuracoes = configuracoes = configuracoes = configuracoes =
 
