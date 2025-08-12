@@ -2,7 +2,7 @@ Create database PetCare;
 use PetCare;
 
 --  usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios =
-select * from animais;
+select * from especies;
 CREATE TABLE Usuarios (
 id INT auto_increment primary KEY,
 nome varchar(100) NOT NULL,
@@ -38,8 +38,13 @@ CREATE TABLE Equipe (
 
     FOREIGN KEY (usuario_id) REFERENCES Usuarios(id)
 );
-select *from animais;
-select * from agendamentos;
+SELECT DISTINCT especie FROM Animais;
+
+
+
+select *from usuarios;
+select * from animais;
+
 create table Especies(
 id int AUTO_INCREMENT PRIMARY KEY,
 nome VARCHAR(100) NOT NULL

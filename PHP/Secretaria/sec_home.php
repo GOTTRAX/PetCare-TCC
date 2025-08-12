@@ -8,18 +8,13 @@ if (!isset($_SESSION["id"]) || $_SESSION["tipo_usuario"] !== "Secretaria") {
 
 include '../conexao.php'; // Aqui seu $pdo é carregado
 
-// Garantir que o PDO lance exceções (se o include não tiver feito)
 if (isset($pdo)) {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 }
 
-// Mensagens
 $mensagem = "";
 $erro = "";
 
-/*
- * 1) Cadastrar novas espécies (campo name="especies" no formulário)
- */
 if (isset($_POST['especies'])) {
     $especies_input = trim($_POST['especies']);
     if ($especies_input !== "") {
@@ -28,9 +23,9 @@ if (isset($_POST['especies'])) {
         try {
             foreach ($especies as $nome) {
                 $nome = trim($nome);
-                if ($nome === '') continue;
+                if ($nome === '')
+                    continue;
 
-                // Verifica existência (case-insensitive)
                 $stmt = $pdo->prepare("SELECT id FROM Especies WHERE LOWER(nome) = LOWER(?) LIMIT 1");
                 $stmt->execute([$nome]);
                 $existe = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -49,9 +44,6 @@ if (isset($_POST['especies'])) {
     }
 }
 
-/*
- * 2) Adicionar novo animal (form com name="adicionar_animal")
- */
 if (isset($_POST['adicionar_animal'])) {
     // Recebe e valida dados
     $nome = trim($_POST['nome'] ?? '');
@@ -83,9 +75,6 @@ if (isset($_POST['adicionar_animal'])) {
     }
 }
 
-/*
- * 3) Editar animal (form com name="editar_animal")
- */
 if (isset($_POST['editar_animal'])) {
     $animal_id = intval($_POST['animal_id'] ?? 0);
     $nome = trim($_POST['nome'] ?? '');
@@ -120,9 +109,6 @@ if (isset($_POST['editar_animal'])) {
     }
 }
 
-/*
- * 4) Excluir animal (form com name="excluir_animal")
- */
 if (isset($_POST['excluir_animal'])) {
     $animal_id = intval($_POST['animal_id'] ?? 0);
     if ($animal_id <= 0) {
@@ -138,11 +124,6 @@ if (isset($_POST['excluir_animal'])) {
     }
 }
 
-/*
- * 5) Buscar usuários (Cliente) — usado no select de proprietários
- *    Mantive sem filtro por tipo caso você queira listar todos; se preferir somente Clientes,
- *    troque o SQL para "WHERE tipo_usuario = 'Cliente' AND ativo = 1"
- */
 try {
     $sql = "SELECT * FROM Usuarios";
     $stmt = $pdo->prepare($sql);
@@ -153,9 +134,6 @@ try {
     $usuarios = [];
 }
 
-/*
- * 6) Buscar espécies para popular selects
- */
 try {
     $sql_especies = "SELECT * FROM Especies ORDER BY nome";
     $stmt_especies = $pdo->prepare($sql_especies);
@@ -166,9 +144,6 @@ try {
     $especies = [];
 }
 
-/*
- * 7) Buscar animais com dados do dono, espécie, idade e última consulta
- */
 try {
     $sql_animais = "SELECT a.*, u.nome as dono_nome, e.nome as especie_nome,
                     TIMESTAMPDIFF(YEAR, a.datanasc, CURDATE()) as idade,
@@ -185,9 +160,6 @@ try {
     $animais = [];
 }
 
-/*
- * 8) Buscar dados do perfil do usuário logado
- */
 try {
     $sql_perfil = "SELECT * FROM Usuarios WHERE id = ?";
     $stmt_perfil = $pdo->prepare($sql_perfil);
@@ -198,9 +170,6 @@ try {
     $perfil = [];
 }
 
-/*
- * 9) Buscar animal específico para edição (GET ?editar=ID)
- */
 $animal_edicao = null;
 if (isset($_GET['editar'])) {
     $id = intval($_GET['editar']);
@@ -216,9 +185,6 @@ if (isset($_GET['editar'])) {
     }
 }
 
-/*
- * 10) Buscar animal específico para visualização (GET ?ver=ID)
- */
 $animal_visualizar = null;
 if (isset($_GET['ver'])) {
     $id = intval($_GET['ver']);
@@ -240,9 +206,6 @@ if (isset($_GET['ver'])) {
     }
 }
 
-/*
- * Funções auxiliares (mantidas)
- */
 function formatarData($data)
 {
     if ($data && $data !== "0000-00-00" && $data !== null) {
@@ -269,13 +232,81 @@ function calcularIdade($datanasc)
     }
     return 0;
 }
+
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $user, $pass);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch(PDOException $e) {
+    die("Erro: " . $e->getMessage());
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['acao']) && $_POST['acao'] === 'adicionar') {
+        $stmt = $pdo->prepare("INSERT INTO Usuarios 
+            (nome, cpf, telefone, email, tipo_usuario, genero, tentativas, datanasc, bloqueado_ate, ultimo_login, ativo, descricao) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([
+            $_POST['nome'],
+            $_POST['cpf'],
+            $_POST['telefone'],
+            $_POST['email'],
+            $_POST['tipo_usuario'],
+            $_POST['genero'],
+            intval($_POST['tentativas']),
+            $_POST['datanasc'] ?: null,
+            $_POST['bloqueado_ate'] ?: null,
+            $_POST['ultimo_login'] ?: null,
+            isset($_POST['ativo']) && $_POST['ativo'] === '1' ? 1 : 0,
+            $_POST['descricao']
+        ]);
+        header("Location: ".$_SERVER['PHP_SELF']);
+        exit;
+    }
+
+    if (isset($_POST['acao']) && $_POST['acao'] === 'editar' && isset($_POST['id'])) {
+        $stmt = $pdo->prepare("UPDATE Usuarios SET 
+            nome=?, cpf=?, telefone=?, email=?, tipo_usuario=?, genero=?, tentativas=?, datanasc=?, bloqueado_ate=?, ultimo_login=?, ativo=?, descricao=?, atualizado_em=NOW()
+            WHERE id=?");
+        $stmt->execute([
+            $_POST['nome'],
+            $_POST['cpf'],
+            $_POST['telefone'],
+            $_POST['email'],
+            $_POST['tipo_usuario'],
+            $_POST['genero'],
+            intval($_POST['tentativas']),
+            $_POST['datanasc'] ?: null,
+            $_POST['bloqueado_ate'] ?: null,
+            $_POST['ultimo_login'] ?: null,
+            isset($_POST['ativo']) && $_POST['ativo'] === '1' ? 1 : 0,
+            $_POST['descricao'],
+            $_POST['id']
+        ]);
+        header("Location: ".$_SERVER['PHP_SELF']);
+        exit;
+    }
+
+    if (isset($_POST['acao']) && $_POST['acao'] === 'excluir' && isset($_POST['id'])) {
+        $stmt = $pdo->prepare("DELETE FROM Usuarios WHERE id=?");
+        $stmt->execute([$_POST['id']]);
+        header("Location: ".$_SERVER['PHP_SELF']);
+        exit;
+    }
+}
+
+$editarUsuario = null;
+if (isset($_GET['acao'], $_GET['id']) && $_GET['acao'] === 'editar') {
+    $stmt = $pdo->prepare("SELECT * FROM Usuarios WHERE id=?");
+    $stmt->execute([$_GET['id']]);
+    $editarUsuario = $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+$usuarios = $pdo->query("SELECT * FROM Usuarios ORDER BY id ASC")->fetchAll(PDO::FETCH_ASSOC);
+
+$tiposUsuario = ['Cliente', 'Veterinario', 'Secretaria', 'Cuidador'];
+$generos = ['Masculino', 'Feminino', 'Outro'];
+
 ?>
-
-
-
-
-
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 
@@ -286,682 +317,510 @@ function calcularIdade($datanasc)
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.css">
     <style>
-        .chart-container {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 30px;
-        }
-
-        .chart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-
-        .chart-controls {
-            display: flex;
-            gap: 10px;
-        }
-
-        .form-control {
-            padding: 8px 12px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            background: white;
-        }
-
-        .fade-in {
-            animation: fadeIn 0.5s ease-in-out;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
         :root {
-            --primary-color: #4361ee;
-            --secondary-color: #3f37c9;
-            --accent-color: #4895ef;
-            --danger-color: #f72585;
-            --success-color: #4cc9f0;
-            --warning-color: #ffaa00;
-            --light-color: #f8f9fa;
-            --dark-color: #212529;
-            --gray-color: #6c757d;
-            --light-gray: #e9ecef;
-            --sidebar-width: 280px;
-            --header-height: 70px;
-            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            --transition: all 0.3s ease;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f5f7fa;
-            color: var(--dark-color);
-            line-height: 1.6;
-            overflow-x: hidden;
-        }
-
-        .app-container {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            width: var(--sidebar-width);
-            background: linear-gradient(180deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-            color: white;
-            position: fixed;
-            height: 100vh;
-            padding: 20px 0;
-            transition: var(--transition);
-            z-index: 1000;
-        }
-
-        .sidebar-header {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0 20px 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .sidebar-header img {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            margin-right: 10px;
-        }
-
-        .sidebar-header h3 {
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        .sidebar-menu {
-            padding: 20px 0;
-        }
-
-        .menu-item {
-            display: flex;
-            align-items: center;
-            padding: 12px 20px;
-            color: white;
-            text-decoration: none;
-            transition: var(--transition);
-            border-left: 4px solid transparent;
-        }
-
-        .menu-item:hover,
-        .menu-item.active {
-            background-color: rgba(255, 255, 255, 0.1);
-            border-left: 4px solid var(--accent-color);
-        }
-
-        .menu-item i {
-            margin-right: 12px;
-            font-size: 18px;
-        }
-
-        .menu-item span {
-            font-size: 15px;
-        }
-
-        .menu-item .badge {
-            margin-left: auto;
-            background-color: var(--danger-color);
-            color: white;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 12px;
-        }
-
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            margin-left: var(--sidebar-width);
-            transition: var(--transition);
-        }
-
-        /* Header */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 30px;
-            background-color: white;
-            box-shadow: var(--shadow);
-            height: var(--header-height);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .header-left h2 {
-            color: var(--dark-color);
-            font-size: 22px;
-            font-weight: 600;
-        }
-
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .user-profile {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-        }
-
-        .user-profile img {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            margin-right: 10px;
-            object-fit: cover;
-        }
-
-        .user-profile span {
-            font-weight: 500;
-        }
-
-        .notification-icon {
-            position: relative;
-            font-size: 20px;
-            color: var(--gray-color);
-            cursor: pointer;
-        }
-
-        .notification-badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background-color: var(--danger-color);
-            color: white;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-        }
-
-        /* Content */
-        .content {
-            padding: 30px;
-        }
-
-        /* Dashboard Cards */
-        .dashboard-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .card {
-            background-color: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: var(--shadow);
-            transition: var(--transition);
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 15px;
-        }
-
-        .card-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            color: white;
-        }
-
-        .card-icon.purple {
-            background-color: #7b2cbf;
-        }
-
-        .card-icon.blue {
-            background-color: var(--accent-color);
-        }
-
-        .card-icon.green {
-            background-color: #2d6a4f;
-        }
-
-        .card-icon.orange {
-            background-color: var(--warning-color);
-        }
-
-        .card-title {
-            font-size: 14px;
-            color: var(--gray-color);
-            font-weight: 500;
-        }
-
-        .card-value {
-            font-size: 24px;
-            font-weight: 600;
-            margin: 5px 0;
-        }
-
-        .card-footer {
-            font-size: 13px;
-            color: var(--gray-color);
-            display: flex;
-            align-items: center;
-        }
-
-        .card-footer i {
-            margin-right: 5px;
-        }
-
-        .positive {
-            color: #2ecc71;
-        }
-
-        .negative {
-            color: var(--danger-color);
-        }
-
-        /* Charts */
-        .charts-row {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        @media (max-width: 1200px) {
-            .charts-row {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .chart-container {
-            background-color: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: var(--shadow);
-        }
-
-        .chart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .chart-header h3 {
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        .chart-actions {
-            display: flex;
-            gap: 10px;
-        }
-
-        /* Recent Activities */
-        .activities-container {
-            background-color: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: var(--shadow);
-        }
-
-        .activity-item {
-            display: flex;
-            padding: 15px 0;
-            border-bottom: 1px solid var(--light-gray);
-        }
-
-        .activity-item:last-child {
-            border-bottom: none;
-        }
-
-        .activity-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background-color: var(--light-gray);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 15px;
-            color: var(--primary-color);
-            font-size: 18px;
-        }
-
-        .activity-content {
-            flex: 1;
-        }
-
-        .activity-title {
-            font-weight: 500;
-            margin-bottom: 5px;
-        }
-
-        .activity-description {
-            font-size: 14px;
-            color: var(--gray-color);
-            margin-bottom: 5px;
-        }
-
-        .activity-time {
-            font-size: 12px;
-            color: var(--gray-color);
-        }
-
-        /* Tables */
-        .table-container {
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: var(--shadow);
-            overflow: hidden;
-            margin-bottom: 30px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th,
-        td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid var(--light-gray);
-        }
-
-        th {
-            background-color: var(--primary-color);
-            color: white;
-            font-weight: 500;
-            text-transform: uppercase;
-            font-size: 13px;
-        }
-
-        tr:nth-child(even) {
-            background-color: #f8f9fa;
-        }
-
-        tr:hover {
-            background-color: #f1f3ff;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-
-        .badge-primary {
-            background-color: #e3f2fd;
-            color: #1976d2;
-        }
-
-        .badge-success {
-            background-color: #e8f5e9;
-            color: #388e3c;
-        }
-
-        .badge-warning {
-            background-color: #fff3e0;
-            color: #e65100;
-        }
-
-        .badge-danger {
-            background-color: #ffebee;
-            color: #d32f2f;
-        }
-
-        /* Buttons */
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-weight: 500;
-            text-decoration: none;
-            transition: var(--transition);
-            border: none;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .btn-sm {
-            padding: 6px 12px;
-            font-size: 13px;
-        }
-
-        .btn-primary {
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background-color: var(--secondary-color);
-            transform: translateY(-2px);
-        }
-
-        .btn-success {
-            background-color: var(--success-color);
-            color: white;
-        }
-
-        .btn-success:hover {
-            background-color: #3aa8d8;
-            transform: translateY(-2px);
-        }
-
-        .btn-danger {
-            background-color: var(--danger-color);
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background-color: #e5177e;
-            transform: translateY(-2px);
-        }
-
-        .btn-warning {
-            background-color: var(--warning-color);
-            color: white;
-        }
-
-        .btn-warning:hover {
-            background-color: #e69500;
-            transform: translateY(-2px);
-        }
-
-        /* Forms */
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 10px 15px;
-            border: 1px solid #ced4da;
-            border-radius: 6px;
-            font-size: 14px;
-            transition: var(--transition);
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 3px rgba(72, 149, 239, 0.25);
-        }
-
-        /* Tabs */
-        .tabs {
-            display: flex;
-            border-bottom: 1px solid #ced4da;
-            margin-bottom: 20px;
-        }
-
-        .tab {
-            padding: 10px 20px;
-            cursor: pointer;
-            font-weight: 500;
-            color: var(--gray-color);
-            border-bottom: 3px solid transparent;
-            transition: var(--transition);
-        }
-
-        .tab.active {
-            color: var(--primary-color);
-            border-bottom: 3px solid var(--primary-color);
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        /* Configurações */
-        .settings-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-        }
-
-        .setting-card {
-            background-color: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: var(--shadow);
-        }
-
-        .setting-card h4 {
-            margin-bottom: 15px;
-            color: var(--primary-color);
-        }
-
-        .days-selector {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .day-checkbox {
-            display: none;
-        }
-
-        .day-label {
-            padding: 8px 15px;
-            background-color: var(--light-gray);
-            border-radius: 6px;
-            cursor: pointer;
-            transition: var(--transition);
-        }
-
-        .day-checkbox:checked+.day-label {
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-        /* Responsive */
-        @media (max-width: 992px) {
-            .sidebar {
-                transform: translateX(-100%);
-                position: fixed;
-                z-index: 1000;
-            }
-
-            .sidebar.active {
-                transform: translateX(0);
-            }
-
-            .main-content {
-                margin-left: 0;
-            }
-
-            .header-left h2 {
-                font-size: 18px;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .dashboard-cards {
-                grid-template-columns: 1fr;
-            }
-
-            .header {
-                padding: 15px;
-            }
-
-            .content {
-                padding: 15px;
-            }
-        }
-
-        /* Animations */
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .fade-in {
-            animation: fadeIn 0.5s ease forwards;
-        }
+    --primary-color: #4e73df;
+    --primary-hover: #3a5bc7;
+    --secondary-color: #1cc88a;
+    --danger-color: #e74a3b;
+    --warning-color: #f6c23e;
+    --info-color: #36b9cc;
+    --dark-color: #5a5c69;
+    --gray-color: #858796;
+    --light-color: #f8f9fc;
+    --light-gray: #e3e6f0;
+    --white: #ffffff;
+    --positive: #1cc88a;
+    --negative: #e74a3b;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #f5f5f5;
+    color: var(--dark-color);
+}
+
+.app-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Sidebar Styles */
+.sidebar {
+    width: 250px;
+    background-color: var(--white);
+    height: 100vh;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    position: fixed;
+    z-index: 100;
+    transition: all 0.3s;
+}
+
+.sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--light-gray);
+    text-align: center;
+}
+
+.sidebar-header h3 {
+    color: var(--primary-color);
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.sidebar-menu {
+    padding: 20px 0;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    color: var(--dark-color);
+    text-decoration: none;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.menu-item i {
+    margin-right: 10px;
+    width: 20px;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.menu-item span {
+    flex: 1;
+}
+
+.menu-item:hover {
+    background-color: var(--light-color);
+    color: var(--primary-color);
+}
+
+.menu-item.active {
+    background-color: var(--light-color);
+    border-left: 3px solid var(--primary-color);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.badge {
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    margin-left: 10px;
+}
+
+/* Main Content Styles */
+.main-content {
+    flex: 1;
+    margin-left: 250px;
+    transition: all 0.3s;
+}
+
+/* Header Styles */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background-color: var(--white);
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 99;
+}
+
+.header-left h2 {
+    color: var(--dark-color);
+    font-size: 1.5rem;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.notification-icon {
+    position: relative;
+    cursor: pointer;
+    color: var(--gray-color);
+    font-size: 1.2rem;
+}
+
+.notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: var(--danger-color);
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.user-profile img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.user-profile span {
+    font-weight: 600;
+}
+
+/* Content Styles */
+.content {
+    padding: 20px;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+    animation: fadeIn 0.5s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Dashboard Cards */
+.dashboard-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.card {
+    background-color: var(--white);
+    border-radius: 8px;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
+    overflow: hidden;
+    transition: transform 0.3s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px;
+}
+
+.card-title {
+    color: var(--gray-color);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+}
+
+.card-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--dark-color);
+    margin-bottom: 10px;
+}
+
+.card-footer {
+    display: flex;
+    align-items: center;
+    font-size: 0.8rem;
+}
+
+.card-footer i {
+    margin-right: 5px;
+}
+
+.card-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.card-icon.green {
+    background-color: var(--secondary-color);
+}
+
+.card-icon.blue {
+    background-color: var(--primary-color);
+}
+
+.card-icon.orange {
+    background-color: var(--warning-color);
+}
+
+.positive {
+    color: var(--positive);
+}
+
+.negative {
+    color: var(--negative);
+}
+
+.fade-in {
+    animation: fadeIn 0.5s forwards;
+    opacity: 0;
+}
+
+/* Chart Container */
+.chart-container {
+    background-color: var(--white);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
+    margin-bottom: 30px;
+}
+
+.chart-container h2 {
+    margin-bottom: 20px;
+    color: var(--dark-color);
+}
+
+#chartType {
+    padding: 8px 12px;
+    border: 1px solid var(--light-gray);
+    border-radius: 4px;
+    margin-bottom: 20px;
+    background-color: var(--white);
+    color: var(--dark-color);
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--light-gray);
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: border-color 0.3s;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+}
+
+textarea.form-control {
+    min-height: 100px;
+    resize: vertical;
+}
+
+/* Table Styles */
+.table-container {
+    background-color: var(--white);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
+    margin-bottom: 30px;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--light-gray);
+}
+
+th {
+    background-color: var(--light-color);
+    color: var(--dark-color);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+}
+
+tr:hover {
+    background-color: var(--light-color);
+}
+
+/* Button Styles */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-decoration: none;
+    gap: 8px;
+}
+
+.btn i {
+    font-size: 0.9rem;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+}
+
+.btn-warning {
+    background-color: var(--warning-color);
+    color: white;
+}
+
+.btn-warning:hover {
+    background-color: #e0b43c;
+}
+
+/* Profile Styles */
+.profile-tab {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.profile-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.profile-header img {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: 15px;
+    border: 5px solid var(--light-color);
+}
+
+.profile-header h3 {
+    color: var(--dark-color);
+    margin-bottom: 5px;
+}
+
+.profile-header p {
+    color: var(--gray-color);
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 70px;
+        overflow: hidden;
+    }
+    
+    .sidebar-header h3,
+    .menu-item span,
+    .badge {
+        display: none;
+    }
+    
+    .menu-item {
+        justify-content: center;
+    }
+    
+    .menu-item i {
+        margin-right: 0;
+        font-size: 1.2rem;
+    }
+    
+    .main-content {
+        margin-left: 70px;
+    }
+    
+    .dashboard-cards {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 576px) {
+    .header {
+        flex-direction: column;
+        gap: 15px;
+        padding: 15px;
+    }
+    
+    .header-right {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .content {
+        padding: 15px;
+    }
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s forwards;
+    opacity: 0;
+}
     </style>
 </head>
 
@@ -995,10 +854,16 @@ function calcularIdade($datanasc)
                     <i class="fas fa-cog"></i>
                     <span>Configurações</span>
                 </a>
-                <a href="../logout.php" class="menu-item">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>Sair</span> <!-- Nao ta funcionando -->
-                </a>
+                <a href="cadastro_equipe.php" class="menu-item" data-tab="cadequipe">
+                    <i class="fas fa-users"></i>
+                    <span>Cadastro de equipe</span>
+                    <a>
+
+                    </a>
+                    <a href="../logout.php" class="menu-item">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Sair</span> <!-- Nao ta funcionando -->
+                    </a>
             </div>
         </div>
 
@@ -1047,8 +912,8 @@ function calcularIdade($datanasc)
                         <div class="card fade-in" style="animation-delay: 0.2s;">
                             <div class="card-header">
                                 <div>
-                                    <div class="card-title">Consultas Hoje</div>
-                                    <div class="card-value">8</div><!-- atencao -->
+                                    <div class="card-title"></div>
+                                    <div class="card-value"></div><!-- atencao -->
                                     <div class="card-footer">
                                         <i class="fas fa-arrow-down negative"></i>
                                         <span class="negative">2% ontem</span><!-- atencao -->
@@ -1079,7 +944,7 @@ function calcularIdade($datanasc)
                         <div class="card fade-in" style="animation-delay: 0.1;"><!-- atencao -->
                             <div class="card-header">
                                 <div>
-                                    <div class="card-title">Faturamento Mensal</div>
+                                    <div class="card-title"></div>
                                     <div class="card-value"> <!-- atencao --> </div>
                                     <div class="card-footer">
                                         <i class="fas fa-arrow-up positive"></i>
@@ -1093,103 +958,7 @@ function calcularIdade($datanasc)
                         </div>
                     </div>
 
-                    <!-- -->
-                    <div class="charts-row">
-                        <div class="chart-container fade-in" style="animation-delay: 0.5s;">
-                            <div class="chart-header">
-                                <h3>Consultas nos Últimos 30 Dias</h3><!-- atencao -->
-                                <div class="chart-actions">
-                                    <select class="form-control" style="width: auto;">
-                                        <option>30 Dias</option>
-                                        <option>7 Dias</option>
-                                        <option>12 Meses</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <canvas id="consultasChart" height="250"></canvas>
-                        </div>
-
-
-                        <!-- Aqui vai a parte do gráfico -->
-                        <div class="chart-container">
-                            <h2>Espécies que Atendemos</h2>
-
-                            <!-- Select para escolher o tipo de gráfico -->
-                            <select id="chartType" onchange="updateChartType()">
-                                <option value="pie">Pizza</option>
-                                <option value="bar">Barra</option>
-                                <option value="line">Linha</option>
-                            </select>
-
-                            <!-- Div para o gráfico -->
-                            <canvas id="animalChart"></canvas>
-                        </div>
-
-                        <!-- Incluindo a biblioteca Chart.js -->
-                        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-                        <script>
-                            let chartType = 'pie';
-                            let chart = null;
-                            let especiesData = [];
-
-                            function fetchData() {
-                                fetch('fetch_animais.php')
-                                    .then(response => response.json())
-                                    .then(data => {
-                                        if (data.length === 0 || data.erro) {
-                                            alert('Nenhuma espécie encontrada!');
-                                        } else {
-                                            especiesData = data;
-                                            generateChart();
-                                        }
-                                    })
-                                    .catch(error => {
-                                        console.error('Erro ao buscar os dados:', error);
-                                    });
-                            }
-
-                            function generateChart() {
-                                const ctx = document.getElementById('animalChart').getContext('2d');
-
-                                if (chart) {
-                                    chart.destroy();
-                                }
-
-                                const labels = especiesData.map(e => e.especie_nome);
-                                const data = especiesData.map(e => e.quantidade);
-                                const colors = labels.map(() => getRandomColor());
-
-                                chart = new Chart(ctx, {
-                                    type: chartType,
-                                    data: {
-                                        labels: labels,
-                                        datasets: [{
-                                            label: 'Quantidade por Espécie',
-                                            data: data,
-                                            backgroundColor: colors
-                                        }]
-                                    }
-                                });
-                            }
-
-                            function updateChartType() {
-                                chartType = document.getElementById('chartType').value;
-                                generateChart();
-                            }
-
-                            function getRandomColor() {
-                                return '#' + Math.floor(Math.random() * 16777215).toString(16);
-                            }
-
-                            // Carrega os dados ao iniciar a página
-                            fetchData();
-                        </script>
-                        
-
-
-                    </div>
-
+                    
                     <div style="margin: 30px; padding: 20px; border: 1px solid #ccc; border-radius: 8px;">
                         <h2>Quais animais sua clínica irá atender?</h2>
                         <form method="POST">
@@ -1200,104 +969,243 @@ function calcularIdade($datanasc)
                             <button type="submit" style="padding: 10px 20px;">Cadastrar Espécies</button>
                         </form>
                     </div>
+                    <!-- Aqui vai a parte do gráfico -->
+                    <div class="chart-container">
+                        <h2>Espécies que Atendemos</h2>
 
+                        <!-- Select para escolher o tipo de gráfico -->
+                        <select id="chartType" onchange="updateChartType()">
+                            <option value="pie">Pizza</option>
+                            <option value="bar">Barra</option>
+                            <option value="line">Linha</option>
+                        </select>
 
-
-
-
-
-                    <div class="activities-container fade-in" style="animation-delay: 0.7s;">
-                        <div class="chart-header">
-                            <h3>Atividades Recentes</h3>
-                            <a href="#" class="btn btn-sm btn-primary">Ver Todas</a>
-                        </div>
-                        <div class="activity-item">
-                            <div class="activity-icon">
-                                <i class="fas fa-calendar-plus"></i>
-                            </div>
-                            <div class="activity-content">
-                                <div class="activity-title">Nova Consulta Agendada</div>
-                                <div class="activity-description">Dr. Silva agendou uma consulta para Rex com o Dr.
-                                    Carlos</div>
-                                <div class="activity-time">10 minutos atrás</div>
-                            </div>
-                        </div>
-                        <div class="activity-item">
-                            <div class="activity-icon">
-                                <i class="fas fa-user-plus"></i>
-                            </div>
-                            <div class="activity-content">
-                                <div class="activity-title">Novo Cliente Cadastrado</div>
-                                <div class="activity-description">Ana Paula foi cadastrada no sistema</div>
-                                <div class="activity-time">1 hora atrás</div>
-                            </div>
-                        </div>
-                        <div class="activity-item">
-                            <div class="activity-icon">
-                                <i class="fas fa-paw"></i>
-                            </div>
-                            <div class="activity-content">
-                                <div class="activity-title">Novo Animal Cadastrado</div>
-                                <div class="activity-description">Thor, um Golden Retriever foi cadastrado</div>
-                                <div class="activity-time">3 horas atrás</div>
-                            </div>
-                        </div>
+                        <!-- Div para o gráfico -->
+                        <canvas id="animalChart" height="111"></canvas>
                     </div>
+
+                    <!-- Incluindo a biblioteca Chart.js -->
+                    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+                    <script>
+                        let chartType = 'pie';
+                        let chart = null;
+                        let especiesData = [];
+
+                        function fetchData() {
+                            fetch('fetch_animais.php')
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.length === 0 || data.erro) {
+                                        alert('Nenhuma espécie encontrada!');
+                                    } else {
+                                        especiesData = data;
+                                        generateChart();
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Erro ao buscar os dados:', error);
+                                });
+                        }
+
+                        function generateChart() {
+                            const ctx = document.getElementById('animalChart').getContext('2d');
+
+                            if (chart) {
+                                chart.destroy();
+                            }
+
+                            const labels = especiesData.map(e => e.especie_nome);
+                            const data = especiesData.map(e => e.quantidade);
+                            const colors = labels.map(() => getRandomColor());
+
+                            chart = new Chart(ctx, {
+                                type: chartType,
+                                data: {
+                                    labels: labels,
+                                    datasets: [{
+                                        label: 'Quantidade por Espécie',
+                                        data: data,
+                                        backgroundColor: colors
+                                    }]
+                                }
+                            });
+                        }
+
+                        function updateChartType() {
+                            chartType = document.getElementById('chartType').value;
+                            generateChart();
+                        }
+
+                        function getRandomColor() {
+                            return '#' + Math.floor(Math.random() * 16777215).toString(16);
+                        }
+
+                        fetchData();
+                    </script>
                 </div>
+
+
 
                 <!-- Usuários Tab -->
                 <div class="tab-content" id="usuarios-tab">
                     <div class="table-container">
-                        <table>
+
+                        <h1>Gerenciar Usuários</h1>
+
+                        <!-- Formulário Adicionar / Editar -->
+                        <h2><?= $editarUsuario ? "Editar Usuário #{$editarUsuario['id']}" : "Adicionar Novo Usuário" ?>
+                        </h2>
+                        <form method="post">
+                            <input type="hidden" name="acao" value="<?= $editarUsuario ? 'editar' : 'adicionar' ?>">
+                            <?php if ($editarUsuario): ?>
+                                <input type="hidden" name="id" value="<?= $editarUsuario['id'] ?>">
+                            <?php endif; ?>
+
+                            <label>Nome:<br>
+                                <input type="text" name="nome"
+                                    value="<?= htmlspecialchars($editarUsuario['nome'] ?? '') ?>" required>
+                            </label><br><br>
+
+                            <label>CPF:<br>
+                                <input type="text" name="cpf"
+                                    value="<?= htmlspecialchars($editarUsuario['cpf'] ?? '') ?>" required>
+                            </label><br><br>
+
+                            <label>Telefone:<br>
+                                <input type="text" name="telefone"
+                                    value="<?= htmlspecialchars($editarUsuario['telefone'] ?? '') ?>">
+                            </label><br><br>
+
+                            <label>Email:<br>
+                                <input type="email" name="email"
+                                    value="<?= htmlspecialchars($editarUsuario['email'] ?? '') ?>" required>
+                            </label><br><br>
+
+                            <label>Tipo de Usuário:<br>
+                                <select name="tipo_usuario" required>
+                                    <?php foreach ($tiposUsuario as $tipo): ?>
+                                        <option value="<?= $tipo ?>" <?= (isset($editarUsuario['tipo_usuario']) && $editarUsuario['tipo_usuario'] === $tipo) ? 'selected' : '' ?>>
+                                            <?= $tipo ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </label><br><br>
+
+                            <label>Gênero:<br>
+                                <select name="genero" required>
+                                    <?php foreach ($generos as $gen): ?>
+                                        <option value="<?= $gen ?>" <?= (isset($editarUsuario['genero']) && $editarUsuario['genero'] === $gen) ? 'selected' : '' ?>>
+                                            <?= $gen ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </label><br><br>
+
+                            <label>Data de Nascimento:<br>
+                                <input type="date" name="datanasc"
+                                    value="<?= htmlspecialchars($editarUsuario['datanasc'] ?? '') ?>">
+                            </label><br><br>
+
+                            <label>Tentativas de Login:<br>
+                                <input type="number" name="tentativas" min="0"
+                                    value="<?= htmlspecialchars($editarUsuario['tentativas'] ?? 0) ?>">
+                            </label><br><br>
+
+                            <label>Último Login (YYYY-MM-DD HH:MM:SS):<br>
+                                <input type="text" name="ultimo_login"
+                                    value="<?= htmlspecialchars($editarUsuario['ultimo_login'] ?? '') ?>"
+                                    placeholder="YYYY-MM-DD HH:MM:SS">
+                            </label><br><br>
+
+                            <label>Bloqueado até (YYYY-MM-DD HH:MM:SS):<br>
+                                <input type="text" name="bloqueado_ate"
+                                    value="<?= htmlspecialchars($editarUsuario['bloqueado_ate'] ?? '') ?>"
+                                    placeholder="YYYY-MM-DD HH:MM:SS">
+                            </label><br><br>
+
+                            <label>Ativo:<br>
+                                <select name="ativo" required>
+                                    <option value="1" <?= (isset($editarUsuario['ativo']) && $editarUsuario['ativo'] == 1) ? 'selected' : '' ?>>Ativo</option>
+                                    <option value="0" <?= (isset($editarUsuario['ativo']) && $editarUsuario['ativo'] == 0) ? 'selected' : '' ?>>Inativo</option>
+                                </select>
+                            </label><br><br>
+
+                            <label>Descrição:<br>
+                                <textarea name="descricao" rows="4"
+                                    cols="50"><?= htmlspecialchars($editarUsuario['descricao'] ?? '') ?></textarea>
+                            </label><br><br>
+
+                            <button
+                                type="submit"><?= $editarUsuario ? "Salvar Alterações" : "Adicionar Usuário" ?></button>
+                            <?php if ($editarUsuario): ?>
+                                <a href="<?= $_SERVER['PHP_SELF'] ?>">Cancelar</a>
+                            <?php endif; ?>
+                        </form>
+
+                        <hr>
+
+                        <!-- Lista Usuários -->
+                        <h2>Lista de Usuários</h2>
+                        <table border="1" cellpadding="5" cellspacing="0">
                             <thead>
                                 <tr>
                                     <th>ID</th>
                                     <th>Nome</th>
-                                    <th>CPF</th>
                                     <th>Telefone</th>
                                     <th>Email</th>
                                     <th>Tipo</th>
+                                    <th>Gênero</th>
+                                    <th>Data Nasc.</th>
+                                    <th>Tentativas</th>
+                                    <th>Último Login</th>
+                                    <th>Bloqueado Até</th>
                                     <th>Ativo</th>
+                                    <th>Criado</th>
+                                    <th>Atualizado</th>
+                                    <th>Descrição</th>
                                     <th>Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php if (empty($usuarios)): ?>
                                     <tr>
-                                        <td colspan="8" style="text-align: center; padding: 20px;">Nenhum usuário cadastrado
-                                        </td>
+                                        <td colspan="15" style="text-align:center;">Nenhum usuário cadastrado.</td>
                                     </tr>
                                 <?php else: ?>
                                     <?php foreach ($usuarios as $usuario): ?>
                                         <tr>
-                                            <td><?= htmlspecialchars($usuario['id']) ?></td>
+                                            <td><?= $usuario['id'] ?></td>
                                             <td><?= htmlspecialchars($usuario['nome']) ?></td>
-                                            <td><?= htmlspecialchars($usuario['cpf']) ?></td>
                                             <td><?= htmlspecialchars($usuario['telefone']) ?></td>
                                             <td><?= htmlspecialchars($usuario['email']) ?></td>
-                                            <td>
-                                                <span
-                                                    class="badge 
-                                                    <?= $usuario['tipo_usuario'] == 'Cliente' ? 'badge-primary' : '' ?>
-                                                    <?= $usuario['tipo_usuario'] == 'Secretaria' ? 'badge-success' : '' ?>
-                                                    <?= $usuario['tipo_usuario'] == 'Veterinario' ? 'badge-warning' : '' ?>">
-                                                    <?= htmlspecialchars($usuario['tipo_usuario']) ?>
-                                                </span>
+                                            <td><?= htmlspecialchars($usuario['tipo_usuario']) ?></td>
+                                            <td><?= htmlspecialchars($usuario['genero']) ?></td>
+                                            <td><?= $usuario['datanasc'] ? (new DateTime($usuario['datanasc']))->format('d/m/Y') : '-' ?>
                                             </td>
-                                            <td>
-                                                <span class="badge <?= $usuario['ativo'] ? 'badge-success' : 'badge-danger' ?>">
-                                                    <?= $usuario['ativo'] ? 'Ativo' : 'Inativo' ?>
-                                                </span>
+                                            <td><?= $usuario['tentativas'] ?></td>
+                                            <td><?= $usuario['ultimo_login'] ? (new DateTime($usuario['ultimo_login']))->format('d/m/Y H:i') : '-' ?>
                                             </td>
+                                            <td><?= $usuario['bloqueado_ate'] ? (new DateTime($usuario['bloqueado_ate']))->format('d/m/Y H:i') : '-' ?>
+                                            </td>
+                                            <td><?= $usuario['ativo'] ? 'Ativo' : 'Inativo' ?></td>
+                                            <td><?= $usuario['criado'] ? (new DateTime($usuario['criado']))->format('d/m/Y H:i') : '-' ?>
+                                            </td>
+                                            <td><?= $usuario['atualizado_em'] ? (new DateTime($usuario['atualizado_em']))->format('d/m/Y H:i') : '-' ?>
+                                            </td>
+                                            <td><?= nl2br(htmlspecialchars($usuario['descricao'])) ?></td>
                                             <td>
-                                                <div style="display: flex; gap: 5px;">
-                                                    <a href="#" class="btn btn-sm btn-primary">
-                                                        <i class="fas fa-edit"></i>
-                                                    </a>
-                                                    <a href="#" class="btn btn-sm btn-danger">
-                                                        <i class="fas fa-trash"></i>
-                                                    </a>
-                                                </div>
+                                                <form method="get" style="display:inline;">
+                                                    <input type="hidden" name="acao" value="editar">
+                                                    <input type="hidden" name="id" value="<?= $usuario['id'] ?>">
+                                                    <button type="submit">Editar</button>
+                                                </form>
+                                                <form method="post" style="display:inline;"
+                                                    onsubmit="return confirm('Tem certeza que deseja excluir este usuário?');">
+                                                    <input type="hidden" name="acao" value="excluir">
+                                                    <input type="hidden" name="id" value="<?= $usuario['id'] ?>">
+                                                    <button type="submit">Excluir</button>
+                                                </form>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -1320,7 +1228,7 @@ function calcularIdade($datanasc)
                                 <tr>
                                     <th>ID</th>
                                     <th>Nome</th>
-                                    <th>Tipo</th>
+                                    <th>especie</th>
                                     <th>Raça</th>
                                     <th>Idade</th>
                                     <th>Dono</th>
@@ -1339,7 +1247,7 @@ function calcularIdade($datanasc)
                                         <tr>
                                             <td><?= htmlspecialchars($animal['id']) ?></td>
                                             <td><?= htmlspecialchars($animal['nome']) ?></td>
-                                            <td><?= htmlspecialchars($animal['especie']) ?></td>
+                                            <td><?= htmlspecialchars($animal['especie_id']) ?></td>
                                             <td><?= htmlspecialchars($animal['raca']) ?></td>
                                             <td><?= htmlspecialchars($animal['idade']) ?> anos</td>
                                             <td><?= htmlspecialchars($animal['dono_nome']) ?></td>
@@ -1425,137 +1333,39 @@ function calcularIdade($datanasc)
                             </div>
                         </form>
                     </div>
+                </div class="tab-content" id="perfil-tab">>
+                <button></button>
+                <a href="cadastro_equipe.php"> cadastro de quipe</a>
+                <div>
+
                 </div>
-
-                <!-- Configurações Tab -->
-                <div class="tab-content" id="configuracoes-tab">
-                    <div class="settings-grid">
-                        <div class="setting-card">
-                            <h4><i class="fas fa-calendar-alt"></i> Dias de Trabalho</h4>
-                            <div class="days-selector">
-                                <input type="checkbox" id="segunda" class="day-checkbox" checked>
-                                <label for="segunda" class="day-label">Segunda</label>
-
-                                <input type="checkbox" id="terca" class="day-checkbox" checked>
-                                <label for="terca" class="day-label">Terça</label>
-
-                                <input type="checkbox" id="quarta" class="day-checkbox" checked>
-                                <label for="quarta" class="day-label">Quarta</label>
-
-                                <input type="checkbox" id="quinta" class="day-checkbox" checked>
-                                <label for="quinta" class="day-label">Quinta</label>
-
-                                <input type="checkbox" id="sexta" class="day-checkbox" checked>
-                                <label for="sexta" class="day-label">Sexta</label>
-
-                                <input type="checkbox" id="sabado" class="day-checkbox">
-                                <label for="sabado" class="day-label">Sábado</label>
-
-                                <input type="checkbox" id="domingo" class="day-checkbox">
-                                <label for="domingo" class="day-label">Domingo</label>
-                            </div>
-                        </div>
-
-                        <div class="setting-card">
-                            <h4><i class="fas fa-clock"></i> Horário de Trabalho</h4>
-                            <div class="form-group">
-                                <label class="form-label">Horário de Abertura</label>
-                                <input type="time" class="form-control" value="08:00">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Horário de Fechamento</label>
-                                <input type="time" class="form-control" value="18:00">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Duração das Consultas (minutos)</label>
-                                <input type="number" class="form-control" value="30">
-                            </div>
-                        </div>
-
-                        <div class="setting-card">
-                            <h4><i class="fas fa-dollar-sign"></i> Valores dos Serviços</h4>
-                            <div class="form-group">
-                                <label class="form-label">Consulta Básica</label>
-                                <input type="text" class="form-control" value="120.00">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Vacinação</label>
-                                <input type="text" class="form-control" value="80.00">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Cirurgia</label>
-                                <input type="text" class="form-control" value="500.00">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Banho e Tosa</label>
-                                <input type="text" class="form-control" value="60.00">
-                            </div>
-                        </div>
-
-                        <div class="setting-card">
-                            <h4><i class="fas fa-bell"></i> Notificações</h4>
-                            <div class="form-group">
-                                <label class="form-label" style="display: flex; align-items: center;">
-                                    <input type="checkbox" style="margin-right: 10px;" checked>
-                                    Lembretes de Consultas
-                                </label>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label" style="display: flex; align-items: center;">
-                                    <input type="checkbox" style="margin-right: 10px;" checked>
-                                    Notificações de Novos Agendamentos
-                                </label>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label" style="display: flex; align-items: center;">
-                                    <input type="checkbox" style="margin-right: 10px;">
-                                    Promoções e Novidades
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
-                        <button type="button" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Salvar Configurações
-                        </button>
-                    </div>
-                </div>
-            </div>
+            </div> 
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
     <script>
-        // Tabs Navigation
         document.querySelectorAll('.menu-item').forEach(item => {
             item.addEventListener('click', function (e) {
                 e.preventDefault();
 
-                // Remove active class from all menu items and tabs
                 document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
                 document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
 
-                // Add active class to clicked menu item
                 this.classList.add('active');
 
-                // Show corresponding tab
                 const tabId = this.getAttribute('data-tab') + '-tab';
                 document.getElementById(tabId).classList.add('active');
 
-                // Update page title
                 const pageTitle = this.querySelector('span').textContent;
                 document.getElementById('page-title').textContent = pageTitle;
             });
         });
 
-        // Responsive Sidebar Toggle
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('active');
         }
 
-        // Charts
-        // Consultas Chart
         const consultasCtx = document.getElementById('consultasChart').getContext('2d');
         const consultasChart = new Chart(consultasCtx, {
             type: 'line',
@@ -1594,7 +1404,6 @@ function calcularIdade($datanasc)
             }
         });
 
-        // Animais Chart
         const animaisCtx = document.getElementById('animaisChart').getContext('2d');
         const animaisChart = new Chart(animaisCtx, {
             type: 'doughnut',
@@ -1622,7 +1431,6 @@ function calcularIdade($datanasc)
             }
         });
 
-        // Responsive adjustments
         window.addEventListener('resize', function () {
             consultasChart.resize();
             animaisChart.resize();

@@ -11,22 +11,35 @@ include '../conexao.php';
 
 // ======= CADASTRO DE ANIMAL =======
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $nome       = $_POST['nome'];
-    $datanasc   = !empty($_POST['datanasc']) ? $_POST['datanasc'] : null;
-    $especie    = $_POST['especie'];
-    $raca       = !empty($_POST['raca']) ? $_POST['raca'] : null;
-    $sexo       = !empty($_POST['sexo']) ? $_POST['sexo'] : null;
-    $porte      = !empty($_POST['porte']) ? $_POST['porte'] : null;
+    $nome = $_POST['nome'];
+    $datanasc = !empty($_POST['datanasc']) ? $_POST['datanasc'] : null;
+    $especie_nome = $_POST['especie']; // Nome da espécie enviado pelo formulário
+    $raca = !empty($_POST['raca']) ? $_POST['raca'] : null;
+    $sexo = !empty($_POST['sexo']) ? $_POST['sexo'] : null;
+    $porte = !empty($_POST['porte']) ? $_POST['porte'] : null;
     $usuario_id = $_SESSION["id"];
 
     try {
-        $sql = "INSERT INTO Animais (nome, datanasc, especie, raca, porte, sexo, usuario_id)
-                VALUES (:nome, :datanasc, :especie, :raca, :porte, :sexo, :usuario_id)";
+        // Primeiro busca o ID da espécie
+        $stmt_especie = $pdo->prepare("SELECT id FROM Especies WHERE nome = :nome");
+        $stmt_especie->execute([':nome' => $especie_nome]);
+        $especie = $stmt_especie->fetch(PDO::FETCH_ASSOC);
+
+        if (!$especie) {
+            echo "<div class='alert error'>Espécie não encontrada!</div>";
+            exit();
+        }
+
+        $especie_id = $especie['id'];
+
+        // Agora insere o animal com o especie_id correto
+        $sql = "INSERT INTO Animais (nome, datanasc, especie_id, raca, porte, sexo, usuario_id)
+                VALUES (:nome, :datanasc, :especie_id, :raca, :porte, :sexo, :usuario_id)";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             ':nome' => $nome,
             ':datanasc' => $datanasc,
-            ':especie' => $especie,
+            ':especie_id' => $especie_id,
             ':raca' => $raca,
             ':porte' => $porte,
             ':sexo' => $sexo,
@@ -43,8 +56,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 $animais = [];
 
 try {
-    $sql = "SELECT a.nome AS animal_nome, a.especie, a.raca, a.sexo, a.porte
+    $sql = "SELECT 
+                a.nome AS animal_nome, 
+                e.nome AS especie, 
+                a.raca, 
+                a.sexo, 
+                a.porte
             FROM Animais a
+            JOIN Especies e ON a.especie_id = e.id
             WHERE a.usuario_id = :usuario_id
             ORDER BY a.nome";
 
@@ -58,6 +77,7 @@ try {
 
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -168,8 +188,15 @@ try {
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .content-section.active {
@@ -209,7 +236,8 @@ try {
             flex-wrap: wrap;
         }
 
-        .form-container, .pets-container {
+        .form-container,
+        .pets-container {
             flex: 1;
             min-width: 300px;
         }
@@ -372,18 +400,19 @@ try {
             .flex-container {
                 flex-direction: column;
             }
-            
+
             .profile-nav {
                 flex-direction: column;
                 align-items: center;
             }
-            
+
             .profile-nav button {
                 width: 100%;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <!-- Profile Header -->
@@ -459,12 +488,20 @@ try {
                             <label for="especie">Espécie:</label>
                             <select name="especie" id="especie" required>
                                 <option value="">Selecione</option>
-                                <option value="Cachorro">Cachorro</option>
-                                <option value="Gato">Gato</option>
-                                <option value="Hamster">Hamster</option>
-                                <option value="Peixe">Peixe</option>
-                                <option value="Outro">Outro</option>
+                                <?php
+                                require '../conexao.php'; // Ajuste o caminho do seu arquivo de conexão
+                                
+                                try {
+                                    $stmt = $pdo->query("SELECT DISTINCT nome FROM Especies ORDER BY nome ASC");
+                                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                                        echo "<option value='" . htmlspecialchars($row['nome']) . "'>" . htmlspecialchars($row['nome']) . "</option>";
+                                    }
+                                } catch (PDOException $e) {
+                                    echo "<option disabled>Erro ao carregar espécies</option>";
+                                }
+                                ?>
                             </select>
+
 
                             <label for="raca">Raça:</label>
                             <input type="text" name="raca" id="raca" placeholder="Ex: Golden Retriever">
@@ -501,19 +538,21 @@ try {
                 <div class="pets-container">
                     <div class="form-animal">
                         <h2><i class="fas fa-paw"></i> Meus Pets</h2>
-                        
+
                         <div class="pets-list">
                             <?php if (!empty($animais)): ?>
                                 <?php foreach ($animais as $animal): ?>
                                     <div class="pet-card">
                                         <div class="pet-icon">
-                                            <?= $animal['especie'] == 'Cachorro' ? '🐶' : 
-                                               ($animal['especie'] == 'Gato' ? '🐱' : 
-                                               ($animal['especie'] == 'Hamster' ? '🐹' : 
-                                               ($animal['especie'] == 'Peixe' ? '🐠' : '🐾'))) ?>
+                                            <?= $animal['especie'] == 'Cachorro' ? '🐶' :
+                                                ($animal['especie'] == 'Gato' ? '🐱' :
+                                                    ($animal['especie'] == 'Hamster' ? '🐹' :
+                                                        ($animal['especie'] == 'Peixe' ? '🐠' : '🐾'))) 
+                                            ?>
                                         </div>
+
                                         <div class="pet-info">
-                                            <div class="pet-name"><?= htmlspecialchars($animal['animal_nome']) ?></div>
+                                            <div class="pet-name"> <?= htmlspecialchars($animal['animal_nome']) ?> </div>
                                             <div class="pet-details">
                                                 <span class="pet-detail">
                                                     <i class="fas fa-dog"></i> <?= htmlspecialchars($animal['especie']) ?>
@@ -530,7 +569,8 @@ try {
                                                 <?php endif; ?>
                                                 <?php if ($animal['porte']): ?>
                                                     <span class="pet-detail">
-                                                        <i class="fas fa-weight-hanging"></i> <?= htmlspecialchars($animal['porte']) ?>
+                                                        <i class="fas fa-weight-hanging"></i>
+                                                        <?= htmlspecialchars($animal['porte']) ?>
                                                     </span>
                                                 <?php endif; ?>
                                             </div>
@@ -538,11 +578,13 @@ try {
                                     </div>
                                 <?php endforeach; ?>
                             <?php else: ?>
+
                                 <div class="no-pets">
                                     <i class="fas fa-paw" style="font-size: 40px; margin-bottom: 10px; opacity: 0.5;"></i>
                                     <p>Você ainda não cadastrou nenhum pet.</p>
                                 </div>
                             <?php endif; ?>
+                            
                         </div>
                     </div>
                 </div>
@@ -552,7 +594,7 @@ try {
         <!-- Config Section -->
         <div id="config" class="content-section">
             <h2><i class="fas fa-cog"></i> Configurações da Conta</h2>
-            
+
             <div class="config-form">
                 <!-- Update Phone -->
                 <div class="form-animal" style="margin-bottom: 20px;">
@@ -565,7 +607,7 @@ try {
                         <button type="submit"><i class="fas fa-sync-alt"></i> Atualizar Telefone</button>
                     </form>
                 </div>
-                
+
                 <!-- Change Password -->
                 <div class="form-animal" style="margin-bottom: 20px;">
                     <h3><i class="fas fa-lock"></i> Alterar Senha</h3>
@@ -585,7 +627,7 @@ try {
                         <button type="submit"><i class="fas fa-key"></i> Alterar Senha</button>
                     </form>
                 </div>
-                
+
                 <!-- Logout -->
                 <form action="../logout.php" method="post">
                     <button type="submit" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Sair da Conta</button>
@@ -600,19 +642,20 @@ try {
             document.querySelectorAll('.content-section').forEach(section => {
                 section.classList.remove('active');
             });
-            
+
             // Show selected section
             document.getElementById(sectionId).classList.add('active');
-            
+
             // Update active button
             document.querySelectorAll('.profile-nav button').forEach(button => {
                 button.classList.remove('active');
             });
-            
+
             event.currentTarget.classList.add('active');
         }
     </script>
 
     <?php include '../menu.php'; ?>
 </body>
+
 </html>
