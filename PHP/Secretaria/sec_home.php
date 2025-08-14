@@ -1335,7 +1335,8 @@ tr:hover {
                     </div>
                 </div class="tab-content" id="perfil-tab">>
                 <button></button>
-                <a href="cadastro_equipe.php"> cadastro de quipe</a>
+                <a href="cadastro_equipe.php"> cadastro de equipe</a>
+                <a href="../Calendario/calendario.php"> calendario</a>
                 <div>
 
                 </div>

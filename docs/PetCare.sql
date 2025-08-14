@@ -2,7 +2,7 @@ Create database PetCare;
 use PetCare;
 
 --  usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios = usuarios =
-select * from especies;
+select * from usuario;
 CREATE TABLE Usuarios (
 id INT auto_increment primary KEY,
 nome varchar(100) NOT NULL,

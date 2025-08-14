@@ -2,20 +2,47 @@
 session_start();
 require '../conexao.php';
 
-if (!isset($_SESSION['id']) || $_SESSION['tipo_usuario'] !== 'Veterinario') {
+header('Content-Type: application/json; charset=utf-8');
+
+// Permite Veterinário ou Secretaria
+if (!isset($_SESSION['id']) || !in_array($_SESSION['tipo_usuario'], ['Veterinario','Secretaria'])) {
     http_response_code(403);
-    exit("Acesso negado");
+    echo json_encode(["erro" => "Acesso negado"]);
+    exit;
 }
 
-$id = $_POST['id'] ?? null;
+$id = isset($_POST['id']) ? (int) $_POST['id'] : null;
 $status = $_POST['status'] ?? null;
 
-if (!$id || !in_array($status, ['aceito', 'recusado'])) {
+$valoresPermitidos = ['confirmado', 'cancelado'];
+
+if (!$id || !in_array($status, $valoresPermitidos, true)) {
     http_response_code(400);
-    exit("Dados inválidos");
+    echo json_encode(["erro" => "Dados inválidos"]);
+    exit;
 }
 
-$stmt = $pdo->prepare("UPDATE Agendamentos SET status = ? WHERE id = ? AND veterinario_id = ?");
-$stmt->execute([$status, $id, $_SESSION['id']]);
+$tipo = $_SESSION['tipo_usuario'];
+$veterinario_id = $_SESSION['id'];
 
-echo "ok";
+if ($status === 'confirmado') {
+    // Se for confirmar, atribui o agendamento ao veterinário logado (se for Veterinário)
+    if ($tipo === 'Veterinario') {
+        $stmt = $pdo->prepare("
+            UPDATE Agendamentos 
+            SET status = ?, veterinario_id = ?
+            WHERE id = ? AND (veterinario_id = ? OR veterinario_id IS NULL)
+        ");
+        $stmt->execute([$status, $veterinario_id, $id, $veterinario_id]);
+    } else {
+        // Secretaria pode confirmar qualquer agendamento sem alterar veterinario_id
+        $stmt = $pdo->prepare("UPDATE Agendamentos SET status = ? WHERE id = ?");
+        $stmt->execute([$status, $id]);
+    }
+} else {
+    // Cancelar
+    $stmt = $pdo->prepare("UPDATE Agendamentos SET status = ? WHERE id = ?");
+    $stmt->execute([$status, $id]);
+}
+
+echo json_encode(["status" => "ok"]);

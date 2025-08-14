@@ -16,6 +16,7 @@ try {
 
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,20 +24,21 @@ try {
     <link rel="stylesheet" href="../../CSS/styles.css">
     <title>Equipe</title>
 </head>
+
 <body>
     <br><br>
     <div class="team-container mt-5">
         <h1 class="text-center mb-4">Nossa Equipe</h1>
         <div class="team-row row justify-content-center">
 
-        <?php
-$sql = "SELECT usuario_id, nome, profissao, descricao, foto FROM equipe";
-$stmt = $pdo->query($sql); // já executa a query diretamente
-$equipe = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            <?php
+            $sql = "SELECT usuario_id, nome, profissao, descricao, foto FROM equipe";
+            $stmt = $pdo->query($sql); // já executa a query diretamente
+            $equipe = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-if (count($equipe) > 0) {
-    foreach ($equipe as $row) {
-        echo '
+            if (count($equipe) > 0) {
+                foreach ($equipe as $row) {
+                    echo '
         <div class="team-member col-md-4">
             <div class="team-card">
                 <img src="../../assets/uploads/' . htmlspecialchars($row["foto"]) . '" class="team-img" alt="Foto de ' . htmlspecialchars($row["nome"]) . '">
@@ -51,11 +53,11 @@ if (count($equipe) > 0) {
                 </div>
             </div>
         </div>';
-    }
-} else {
-    echo '<p class="text-center">Nenhum membro cadastrado ainda.</p>';
-}
-?>
+                }
+            } else {
+                echo '<p class="text-center">Nenhum membro cadastrado ainda.</p>';
+            }
+            ?>
 
 
         </div>
@@ -66,4 +68,5 @@ if (count($equipe) > 0) {
     <?php include '../footer.html'; ?>
     <script src="../../JS/script.js" defer></script>
 </body>
+
 </html>

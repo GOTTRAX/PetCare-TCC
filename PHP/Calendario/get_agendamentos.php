@@ -15,7 +15,6 @@ if (!$usuario_id || !$tipo) {
 
 try {
     if ($tipo === 'Cliente') {
-        // Cliente vê apenas seus agendamentos confirmados
         $sql = "
             SELECT a.id, a.data_hora, a.hora_inicio, a.hora_final, a.observacoes, a.status,
                    an.nome AS animal_nome, e.nome AS vet_nome
@@ -28,7 +27,6 @@ try {
         $stmt->execute([$usuario_id]);
 
     } elseif ($tipo === 'Veterinario') {
-        // Veterinário vê todos pendentes e confirmados
         $sql = "
             SELECT a.id, a.data_hora, a.hora_inicio, a.hora_final, a.observacoes, a.status,
                    an.nome AS animal_nome, e.nome AS vet_nome
@@ -41,7 +39,6 @@ try {
         $stmt->execute();
 
     } elseif ($tipo === 'Secretaria' || $tipo === 'Cuidador') {
-        // Secretária/cuidador veem todos os agendamentos
         $sql = "
             SELECT a.id, a.data_hora, a.hora_inicio, a.hora_final, a.observacoes, a.status,
                    an.nome AS animal_nome, e.nome AS vet_nome
@@ -81,7 +78,6 @@ try {
             $end = $dtEnd ? $dtEnd->format('c') : $date . 'T' . $end_time;
         }
 
-        // Monta título
         $title = 'Agendamento';
         if (!empty($row['observacoes'])) {
             $title = mb_strimwidth($row['observacoes'], 0, 80, '...');
@@ -100,7 +96,7 @@ try {
             'start'  => $start,
             'end'    => $end,
             'allDay' => false,
-            'status' => $row['status'] // importante para o veterinário
+            'status' => $row['status'] 
         ];
     }
 
